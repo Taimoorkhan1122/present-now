@@ -24,6 +24,9 @@ Follow the "For AI agents" section of its README.md.
 
 ### Steps for the agent
 
+<details>
+<summary>Show the install steps</summary>
+
 If you are an AI agent installing this skill, follow these steps in order.
 
 1. **Check the requirements.** Run each command and note which ones fail:
@@ -66,6 +69,8 @@ The install is done when `<install-folder>/SKILL.md` exists, the test in step 4 
 and the user has your report.
 
 To make a deck after the install, read `<install-folder>/SKILL.md` and follow it.
+
+</details>
 
 ## What you get
 
