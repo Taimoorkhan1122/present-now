@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The model is not the problem</title>
+<style>
+:root {
+  --paper: #f7f4ee;
+  --paper-2: #eee9df;
+  --card: #fffdf9;
+  --ink: #1b1a17;
+  --ink-2: #3b3934;
+  --muted: #6b655c;
+  --rule: #ddd6c9;
+  --accent: #b8401a;
+  --accent-soft: #f4e2d7;
+  --ok: #2f6b3a;
+  --ok-soft: #e0ecdf;
+  --bad: #a3261b;
+  --bad-soft: #f6dedb;
+  --serif: "Iowan Old Style", "Charter", "Source Serif 4", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); }
+body { font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+
+/* 1600x900 canvas, scaled to fit the screen by the engine */
+.deck {
+  position: absolute; left: 50%; top: 50%;
+  width: 1600px; height: 900px;
+  transform: translate(-50%, -50%) scale(var(--scale, 1));
+}
+.slide {
+  position: absolute; inset: 0;
+  padding: 88px 120px 96px;
+  display: flex; flex-direction: column;
+  opacity: 0; visibility: hidden;
+  transition: opacity .35s ease, visibility 0s linear .35s;
+}
+.slide.active { opacity: 1; visibility: visible; transition: opacity .35s ease; }
+.slide.center { justify-content: center; }
+.notes { display: none; }
+
+/* Type */
+.kicker {
+  font: 500 19px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 28px;
+}
+h1, h2 { font-family: var(--serif); font-weight: 400; letter-spacing: -.02em; margin: 0; }
+h1 { font-size: 108px; line-height: 1.02; }
+h2 { font-size: 64px; line-height: 1.08; margin-bottom: 36px; max-width: 1300px; }
+h3 { font: 600 26px/1.25 var(--sans); margin: 0 0 10px; }
+h1 em, h2 em { font-style: italic; color: var(--accent); }
+p, li { font-size: 26px; line-height: 1.45; margin: 0; }
+.lede { font-family: var(--serif); font-size: 34px; line-height: 1.35; color: var(--ink-2); max-width: 1150px; }
+.small, .small p, .small li { font-size: 21px; }
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }
+ul.clean { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+code {
+  font-family: var(--mono); font-size: .82em;
+  background: var(--paper-2); padding: 2px 8px; border-radius: 6px;
+}
+pre {
+  margin: 0; font: 21px/1.5 var(--mono); color: var(--ink);
+  background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 26px 30px; overflow: hidden; white-space: pre;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+/* Hand-applied syntax colors */
+.tok-k { color: #8a3ab9; }
+.tok-s { color: #2f6b3a; }
+.tok-c { color: var(--muted); font-style: italic; }
+.tok-f { color: #1d5fa8; }
+.tok-bad { background: var(--bad-soft); color: var(--bad); border-radius: 4px; }
+.tok-ok { background: var(--ok-soft); color: var(--ok); border-radius: 4px; }
+
+/* Layout */
+.grid-2, .grid-3, .grid-4 { display: grid; gap: 28px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.grow { flex: 1; min-height: 0; }
+.mt-auto { margin-top: auto; }
+
+/* Components */
+.card {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 18px;
+  padding: 30px 32px;
+}
+.card p, .card li { font-size: 22px; color: var(--ink-2); }
+.card .num { font: 500 18px/1 var(--mono); color: var(--accent); margin-bottom: 18px; display: block; }
+.chip {
+  display: inline-block; font: 18px/1 var(--mono); padding: 9px 14px;
+  border: 1px solid var(--rule); border-radius: 999px; background: var(--card); color: var(--ink-2);
+}
+.chip.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.chip.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
+.chip.hot { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.callout {
+  border-left: 4px solid var(--accent); padding: 4px 0 4px 28px;
+  font: italic 32px/1.35 var(--serif); color: var(--ink-2); max-width: 1200px;
+}
+.big-number { font: 400 150px/1 var(--serif); letter-spacing: -.03em; }
+.btn {
+  font: 500 20px/1 var(--sans); color: var(--ink); background: var(--card);
+  border: 1px solid var(--rule); border-radius: 999px; padding: 13px 22px; cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.is-active, .btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.is-active code, .btn[aria-pressed="true"] code, [aria-selected="true"] code { background: rgba(255,255,255,.16); color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* Tabs / segmented toggle — wired by the engine via data-tabs / data-tab / data-panel */
+.tab-list {
+  display: inline-flex; gap: 4px; padding: 6px; border-radius: 999px;
+  background: var(--paper-2); border: 1px solid var(--rule); align-self: flex-start;
+}
+.tab-list [data-tab] {
+  font: 500 20px/1 var(--sans); color: var(--ink-2); background: transparent;
+  border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer;
+}
+.tab-list [data-tab][aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.tab-panel { margin-top: 28px; }
+[hidden] { display: none !important; }
+
+/* Step reveal — Right arrow reveals .step elements one by one before moving on */
+.step { opacity: 0; transform: translateY(14px); transition: opacity .4s ease, transform .4s ease; }
+.step.shown { opacity: 1; transform: none; }
+
+/* Chrome */
+.deck-footer {
+  position: absolute; left: 120px; right: 120px; bottom: 36px;
+  display: flex; justify-content: space-between;
+  font: 16px/1 var(--mono); color: var(--muted); pointer-events: none;
+}
+.progress { position: fixed; left: 0; right: 0; bottom: 0; height: 4px; background: var(--paper-2); z-index: 5; }
+.progress > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .35s ease; }
+.notes-panel {
+  position: fixed; left: 24px; right: 24px; bottom: 20px; max-height: 42vh; overflow: auto; z-index: 10;
+  background: var(--ink); color: var(--paper); border-radius: 16px; padding: 22px 28px;
+  font: 18px/1.5 var(--sans); box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.notes-panel h4 { margin: 0 0 10px; font: 500 14px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #e9a98c; }
+.notes-panel p, .notes-panel li { font-size: 18px; }
+</style>
+</head>
+<body>
+<main class="deck">
+<section class="slide center" id="s-hook" data-title="The model is not the problem">
+  <p class="kicker">01 · Opening</p>
+  <h1>The model is not the <em>problem</em></h1>
+  <p class="lede">The harness around the model decides what the model can do.</p>
+  <p class="small muted">20 minutes. Engineers and leadership.</p>
+
+  <aside class="notes">
+    <p><strong>~0:40.</strong> Say this out loud: "Every team here has watched an agent do something
+    impressive in a demo, then fail on real work. The instinct is to blame the model. The model is
+    the one thing we cannot swap this quarter. The harness is the thing we own."</p>
+    <p>Grounding for the claim: Anthropic, "Building effective agents" (Dec 2024) — agents are
+    "typically just LLMs using tools based on environmental feedback in a loop." The loop and the
+    tools are ours, not the model's.</p>
+    <p>Transition: "So let me show you what that failure actually looks like."</p>
+  </aside>
+</section>
+<style>
+  #s-hook h1 { max-width: 1150px; }
+  #s-hook .lede { margin-top: 44px; max-width: 940px; }
+  #s-hook .small { margin-top: 30px; font-family: var(--mono); letter-spacing: .04em; }
+</style>
+<section class="slide" id="s-gap" data-title="Demo works, production does not">
+  <p class="kicker">01 · Opening</p>
+  <h2>It works in the demo. Then it meets <em>our repo</em>.</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <span class="num">01</span>
+      <h3>The demo</h3>
+      <ul class="clean">
+        <li>Clean prompt</li>
+        <li>One file</li>
+        <li>The happy path</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="num">02</span>
+      <h3>Our reality</h3>
+      <ul class="clean">
+        <li>A large repo</li>
+        <li>House conventions</li>
+        <li>Flaky tests</li>
+        <li>Real users</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row breaks">
+    <span class="small muted">What breaks</span>
+    <span class="chip bad">half-done features</span>
+    <span class="chip bad">declares victory early</span>
+    <span class="chip bad">no way to check it</span>
+    <span class="chip bad">lost context</span>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:00.</strong> The gap is systematic, not a model bug. Anthropic, "Effective harnesses
+    for long-running agents" (Nov 2025): a frontier model (Opus 4.5) running on the Claude Agent SDK
+    in a loop, given only a high-level prompt, "will fall short of building a production-quality web
+    app." Same model, same loop, wrong harness.</p>
+    <p>Anthropic names four observed failure modes, and they are the chips on this slide: the agent
+    tries to one-shot the work and runs out of context, it declares the job done, it marks features
+    complete without testing, and it has to spend time working out how to run the app. All four were
+    addressed by changing the environment around the model: an initializer run, a feature list, a
+    progress file, git commits, an <code>init.sh</code>. The model did not change. In their setup the
+    system prompt, the tools and the harness stayed the same between the two agent roles; only the
+    starting prompt and the environment around the model changed.</p>
+    <p>Transition: "If the harness is the variable, then the harness is the thing to engineer."</p>
+  </aside>
+</section>
+<style>
+  #s-gap h2 { max-width: 1100px; }
+  #s-gap .card .num { color: var(--muted); }
+  #s-gap .card ul.clean { gap: 6px; }
+  #s-gap .card li { font-size: 22px; }
+  #s-gap .breaks { margin-top: 34px; gap: 12px; }
+  #s-gap .breaks > .small { margin-right: 8px; letter-spacing: .08em; text-transform: uppercase; }
+</style>
+<section class="slide" id="s-idea" data-title="The harness is the product">
+  <p class="kicker">01 · Opening</p>
+  <h2>The harness is the <em>product</em>.</h2>
+
+  <p class="callout">A harness is the loop, tools, context, memory, evals and guardrails around a model.</p>
+
+  <div class="agenda">
+    <div class="step">
+      <span class="num">01</span>
+      <h3>What a harness is</h3>
+    </div>
+    <div class="step">
+      <span class="num">02</span>
+      <h3>Why agents fail</h3>
+    </div>
+    <div class="step">
+      <span class="num">03</span>
+      <h3>The evidence</h3>
+    </div>
+    <div class="step">
+      <span class="num">04</span>
+      <h3>Building the team</h3>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:15.</strong> Define it in one breath: "A harness is everything a model runs inside:
+    the loop that decides what happens next, the tools it can call, the context it sees, the memory
+    it keeps, the evals that tell us if it works, and the guardrails that stop it."</p>
+    <p>Preview the arc, one sentence each. First, what a harness is made of. Second, why capable
+    agents still fail without one. Third, what the public evidence says about scaffolding versus
+    model. Fourth, who we need to build and run it.</p>
+    <p>Evidence to keep in your pocket. SWE-agent (Yang et al., arXiv:2405.15793): "interface design
+    affects the performance of language model agents"; their custom agent-computer interface reached
+    12.5% pass@1 on SWE-bench. Anthropic, "Building effective agents": while building their SWE-bench
+    agent, "we actually spent more time optimizing our tools than the overall prompt." Anthropic,
+    "Effective context engineering": context is a finite attention budget, and recall degrades as
+    tokens grow ("context rot").</p>
+    <p>Transition: "Start with the parts."</p>
+  </aside>
+</section>
+<style>
+  #s-idea .callout { margin-bottom: 58px; max-width: 1040px; }
+  #s-idea .agenda { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  #s-idea .agenda .step { border-top: 2px solid var(--rule); padding-top: 20px; min-height: 96px; }
+  #s-idea .agenda .num { color: var(--muted); margin-bottom: 14px; }
+  #s-idea .agenda h3 { font-size: 24px; margin: 0; }
+</style>
+<section class="slide" id="s-anatomy" data-title="Six parts of a harness">
+  <p class="kicker">02 · Anatomy</p>
+  <h2>Six parts, one <em>job</em>.</h2>
+
+  <div class="anatomy">
+    <div class="grid-3 parts">
+      <button type="button" class="btn part" data-part="loop" aria-pressed="true">
+        <span class="idx">01</span>
+        <span class="name">loop</span>
+        <span class="tag">the turn cycle</span>
+      </button>
+      <button type="button" class="btn part" data-part="tools" aria-pressed="false">
+        <span class="idx">02</span>
+        <span class="name">tools</span>
+        <span class="tag">the action surface</span>
+      </button>
+      <button type="button" class="btn part" data-part="context" aria-pressed="false">
+        <span class="idx">03</span>
+        <span class="name">context</span>
+        <span class="tag">what the model sees</span>
+      </button>
+      <button type="button" class="btn part" data-part="memory" aria-pressed="false">
+        <span class="idx">04</span>
+        <span class="name">memory</span>
+        <span class="tag">what survives</span>
+      </button>
+      <button type="button" class="btn part" data-part="evals" aria-pressed="false">
+        <span class="idx">05</span>
+        <span class="name">evals</span>
+        <span class="tag">the scoreboard</span>
+      </button>
+      <button type="button" class="btn part" data-part="guardrails" aria-pressed="false">
+        <span class="idx">06</span>
+        <span class="name">guardrails</span>
+        <span class="tag">the trust boundary</span>
+      </button>
+    </div>
+
+    <div class="detail" aria-live="polite">
+      <p class="d-title" id="anatomy-title">loop — the turn cycle</p>
+      <p class="d-body" id="anatomy-body">Model call, tool run, observation, repeat. It ends when the model stops or a turn limit fires.</p>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:30.</strong> Ten seconds a part, one example each. Loop: OpenAI's function-calling flow is five steps — send tools, receive a call, run it in your application, send the output back, receive the next response; the Agents SDK repeats that until final output or <code>max_turns</code>. Tools: Anthropic's SWE-bench team spent more time optimizing tools than the overall prompt, and requiring absolute filepaths fixed a recurring failure. Context: Claude Code sends the full conversation with every request, so the window is a harness budget. Memory: Claude Code re-injects CLAUDE.md and auto memory from disk after compaction. Evals: SWE-bench scores a task only when the tests pass, so the number is execution, not opinion. Guardrails: Codex separates the sandbox (technical boundary) from the approval policy (when the agent must stop and ask).</p>
+    <p>The point: each part is owned, testable, and has failure modes. None of them is "the model". Next, one turn in sequence.</p>
+  </aside>
+</section>
+<style>
+  #s-anatomy .anatomy { display: flex; flex-direction: column; gap: 26px; }
+  #s-anatomy .parts { gap: 18px; }
+  #s-anatomy .part {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+    min-height: 104px; padding: 16px 22px; border-radius: 14px; text-align: left;
+  }
+  #s-anatomy .idx { font: 500 16px/1 var(--mono); letter-spacing: .1em; color: var(--accent); }
+  #s-anatomy .name { font: 600 24px/1.1 var(--sans); }
+  #s-anatomy .tag { font: 16px/1.2 var(--mono); color: var(--muted); }
+  #s-anatomy .part.is-active .idx { color: #e9a98c; }
+  #s-anatomy .part.is-active .tag { color: rgba(247, 244, 238, .72); }
+  #s-anatomy .detail {
+    height: 172px; padding: 26px 32px;
+    background: var(--card); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+    border-radius: 0 16px 16px 0; overflow: hidden;
+  }
+  #s-anatomy .d-title { font: 400 30px/1.2 var(--serif); color: var(--ink); margin-bottom: 12px; }
+  #s-anatomy .d-body { font-size: 22px; line-height: 1.5; color: var(--ink-2); max-width: 820px; }
+</style>
+<script>
+  (() => {
+    const root = document.getElementById('s-anatomy');
+    const parts = {
+      loop: ['loop — the turn cycle', 'Model call, tool run, observation, repeat. It ends when the model stops or a turn limit fires.'],
+      tools: ['tools — the action surface', 'A small, documented set of actions. Interface design decides whether the model uses them well.'],
+      context: ['context — what the model sees', 'The harness builds every prompt: system rules, files, tool output, history. Nothing else reaches the model.'],
+      memory: ['memory — what survives', 'Notes and project files reload at session start and after compaction, so the next turn starts informed.'],
+      evals: ['evals — the scoreboard', 'A fixed task set with pass or fail checks. Every harness change gets measured before it ships.'],
+      guardrails: ['guardrails — the trust boundary', 'Sandbox limits and approval rules bound each action before it runs, not after it fails.']
+    };
+    const buttons = [...root.querySelectorAll('[data-part]')];
+    const title = root.querySelector('#anatomy-title');
+    const body = root.querySelector('#anatomy-body');
+
+    const select = (name) => {
+      const entry = parts[name] || parts.loop;
+      buttons.forEach((b) => {
+        const on = b.dataset.part === name;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      title.textContent = entry[0];
+      body.textContent = entry[1];
+    };
+
+    buttons.forEach((b) => b.addEventListener('click', () => select(b.dataset.part)));
+    root.addEventListener('slide:enter', () => select('loop'));
+    select('loop');
+  })();
+</script>
+<section class="slide" id="s-loop" data-title="One turn, in order">
+  <p class="kicker">02 · Anatomy</p>
+  <h2>One turn, in <em>order</em>.</h2>
+
+  <div class="lane">
+    <article class="step stage">
+      <span class="n">01</span>
+      <h3>Assemble context</h3>
+      <p>Task, rules, memory, last result.</p>
+    </article>
+    <article class="step stage">
+      <span class="n">02</span>
+      <h3>Model call</h3>
+      <p>One action at a time.</p>
+    </article>
+    <article class="step stage">
+      <span class="n">03</span>
+      <h3>Pick tools</h3>
+      <p>Name, arguments, intent.</p>
+    </article>
+    <article class="step stage">
+      <span class="n">04</span>
+      <h3>Execute in sandbox</h3>
+      <p>Inside the boundary.</p>
+    </article>
+    <article class="step stage">
+      <span class="n">05</span>
+      <h3>Read observation</h3>
+      <p>Output, exit code, error.</p>
+    </article>
+    <article class="step stage">
+      <span class="n">06</span>
+      <h3>Compact and repeat</h3>
+      <p>Trim, then next turn.</p>
+    </article>
+  </div>
+
+  <p class="loopback"><span class="ret" aria-hidden="true"></span>The last observation becomes the next turn's first input.</p>
+
+  <aside class="notes">
+    <p><strong>~1:15.</strong> Anthropic defines an agent as "LLMs using tools based on environmental feedback in a loop". OpenAI's function-calling flow makes the mechanics explicit: send the tool definitions, receive a tool call, execute it in your application, send the result back, receive the next response. The Agents SDK repeats that until final output and raises <code>MaxTurnsExceeded</code> past <code>max_turns</code>. Anthropic ends a model turn with <code>stop_reason: "tool_use"</code>; your code runs the block and returns a <code>tool_result</code>.</p>
+    <p>This is a harness loop, not a model loop. Claude Code sends the full conversation with every request and auto-compacts near the context limit. SWE-agent's ablation on SWE-bench Lite scored 18.0% when the agent saw the last five observations and 15.0% with full history, so what you feed back matters. Step four runs in the Codex sandbox: the sandbox sets the technical boundary, and the approval policy decides when the agent must stop and ask.</p>
+    <p>Six stages, one pass. The next slide shows what sits around them.</p>
+  </aside>
+</section>
+<style>
+  #s-loop .lane {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 36px; margin-top: 6px;
+  }
+  #s-loop .stage {
+    position: relative; display: flex; flex-direction: column;
+    height: 354px; padding: 22px 20px 24px;
+    background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--rule);
+    border-radius: 14px;
+    transition: opacity .4s ease, transform .4s ease, border-color .3s ease;
+  }
+  #s-loop .stage.shown { border-top-color: var(--accent); }
+  #s-loop .n { font: 500 16px/1 var(--mono); letter-spacing: .1em; color: var(--accent); }
+  #s-loop h3 { font-size: 26px; line-height: 1.18; margin: 16px 0 0; }
+  #s-loop .stage p {
+    font-size: 21px; line-height: 1.4; color: var(--ink-2);
+    margin-top: auto;
+  }
+  #s-loop .stage:not(:last-child)::after {
+    content: ""; position: absolute; top: 50%; right: -28px;
+    width: 20px; height: 2px; background: var(--rule);
+  }
+  #s-loop .stage:not(:last-child)::before {
+    content: ""; position: absolute; top: calc(50% - 5px); right: -36px;
+    border-left: 8px solid var(--rule); border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  #s-loop .loopback {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 28px; font: 16px/1 var(--mono); color: var(--muted);
+  }
+  #s-loop .ret {
+    position: relative; flex: none; width: 42px; height: 2px; background: var(--rule);
+  }
+  #s-loop .ret::before {
+    content: ""; position: absolute; left: 0; top: -4px;
+    border-right: 8px solid var(--rule); border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+</style>
+<section class="slide" id="s-architecture" data-title="The harness in layers" data-reveal="0">
+  <p class="kicker">02 · Anatomy</p>
+  <h2>The harness sits <em>between</em> model and world.</h2>
+
+  <svg class="map" viewBox="0 0 1360 430" role="img" aria-label="The real world connects to a harness of six services, which surrounds the model.">
+    <defs>
+      <marker id="s-arch-arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path class="arw-head" d="M 0 1 L 9 5 L 0 9"></path>
+      </marker>
+    </defs>
+
+    <g class="lyr lyr-world">
+      <rect class="world-bg" x="1" y="1" width="1358" height="428" rx="22"></rect>
+      <text class="t-kick" x="28" y="34">REAL WORLD</text>
+
+      <rect class="world-box" x="28" y="70" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="46" y="103">repo</text>
+      <text class="t-s" x="46" y="126">code and docs</text>
+
+      <rect class="world-box" x="28" y="172" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="46" y="205">terminal</text>
+      <text class="t-s" x="46" y="228">shell and build</text>
+
+      <rect class="world-box" x="28" y="274" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="46" y="307">tests</text>
+      <text class="t-s" x="46" y="330">pass or fail</text>
+
+      <rect class="world-box" x="1074" y="70" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="1092" y="103">user</text>
+      <text class="t-s" x="1092" y="126">asks and reviews</text>
+
+      <rect class="world-box" x="1074" y="172" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="1092" y="205">services</text>
+      <text class="t-s" x="1092" y="228">APIs and data</text>
+
+      <rect class="world-box" x="1074" y="274" width="258" height="74" rx="12"></rect>
+      <text class="t-h" x="1092" y="307">CI</text>
+      <text class="t-s" x="1092" y="330">runs the suite</text>
+
+      <g class="edges">
+        <line x1="286" y1="107" x2="328" y2="107" marker-end="url(#s-arch-arw)"></line>
+        <line x1="286" y1="209" x2="328" y2="209" marker-end="url(#s-arch-arw)"></line>
+        <line x1="286" y1="311" x2="328" y2="311" marker-end="url(#s-arch-arw)"></line>
+        <line x1="1030" y1="107" x2="1072" y2="107" marker-end="url(#s-arch-arw)"></line>
+        <line x1="1030" y1="209" x2="1072" y2="209" marker-end="url(#s-arch-arw)"></line>
+        <line x1="1030" y1="311" x2="1072" y2="311" marker-end="url(#s-arch-arw)"></line>
+      </g>
+    </g>
+
+    <g class="lyr lyr-harness">
+      <rect class="h-bg" x="330" y="52" width="700" height="326" rx="20"></rect>
+      <text class="t-harness" x="680" y="82" text-anchor="middle">THE HARNESS</text>
+
+      <rect class="svc-bg" x="352" y="100" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="370" y="129">context builder</text>
+      <text class="t-s" x="370" y="151">assembles the prompt</text>
+
+      <rect class="svc-bg" x="352" y="182" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="370" y="211">tool router</text>
+      <text class="t-s" x="370" y="233">maps calls to runs</text>
+
+      <rect class="svc-bg" x="352" y="264" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="370" y="293">sandbox</text>
+      <text class="t-s" x="370" y="315">bounds execution</text>
+
+      <rect class="svc-bg" x="814" y="100" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="832" y="129">memory</text>
+      <text class="t-s" x="832" y="151">reloads what lasts</text>
+
+      <rect class="svc-bg" x="814" y="182" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="832" y="211">evals</text>
+      <text class="t-s" x="832" y="233">scores every change</text>
+
+      <rect class="svc-bg" x="814" y="264" width="194" height="70" rx="10"></rect>
+      <text class="t-h" x="832" y="293">guardrails</text>
+      <text class="t-s" x="832" y="315">stops before harm</text>
+    </g>
+
+    <g class="lyr lyr-model">
+      <rect class="model-bg" x="574" y="138" width="212" height="156" rx="16"></rect>
+      <text class="t-model" x="680" y="212" text-anchor="middle">the model</text>
+      <text class="t-model-sub" x="680" y="244" text-anchor="middle">no memory, no hands</text>
+    </g>
+  </svg>
+
+  <div class="beats">
+    <div class="step beat"><span class="n">01</span><p>The world supplies raw state.</p></div>
+    <div class="step beat"><span class="n">02</span><p>The harness builds the turn.</p></div>
+    <div class="step beat"><span class="n">03</span><p>The model returns one next step.</p></div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:30.</strong> Three layers. The world is the repo, the shell, the tests, the user and the APIs. The harness is everything in between: it assembles context, routes tools, runs them in a sandbox, reloads memory, scores changes and enforces guardrails. The model is the smallest layer: it returns one next step and keeps no state.</p>
+    <p>Anthropic's agents post defines agents as "LLMs using tools based on environmental feedback in a loop", and its SWE-bench team spent more time optimizing tools than the overall prompt. Claude Code sends the full conversation with every request; a subagent runs in its own context window and returns only a summary, so what crosses the boundary is a design choice. Codex makes the boundary explicit: the sandbox sets the technical limit, and the approval policy decides when the agent must stop and ask. SWE-agent's ablation shows the layer moves the number: a 100-line file view scored 18.0% on Lite; the full file scored 12.7%.</p>
+    <p>The model is one component. Next, how each part fails.</p>
+  </aside>
+</section>
+<style>
+  #s-architecture h2 { max-width: 1360px; font-size: 60px; margin-bottom: 22px; }
+  #s-architecture .map { display: block; width: 100%; height: 430px; }
+
+  #s-architecture .lyr { opacity: .26; transition: opacity .5s ease; }
+  #s-architecture[data-reveal="1"] .lyr-world,
+  #s-architecture[data-reveal="2"] .lyr-world,
+  #s-architecture[data-reveal="3"] .lyr-world,
+  #s-architecture[data-reveal="2"] .lyr-harness,
+  #s-architecture[data-reveal="3"] .lyr-harness,
+  #s-architecture[data-reveal="3"] .lyr-model { opacity: 1; }
+
+  #s-architecture .world-bg { fill: var(--paper-2); stroke: var(--rule); }
+  #s-architecture .world-box { fill: var(--card); stroke: var(--rule); }
+  #s-architecture .h-bg { fill: var(--card); stroke: var(--rule); }
+  #s-architecture .svc-bg { fill: var(--paper); stroke: var(--rule); }
+  #s-architecture .model-bg { fill: var(--card); stroke: var(--accent); stroke-width: 1.5; }
+  #s-architecture .edges line { stroke: var(--rule); stroke-width: 2; }
+  #s-architecture .arw-head { fill: var(--rule); }
+
+  #s-architecture .t-kick { font: 500 16px/1 var(--mono); letter-spacing: .12em; fill: var(--accent); }
+  #s-architecture .t-harness { font: 500 16px/1 var(--mono); letter-spacing: .14em; fill: var(--accent); }
+  #s-architecture .t-h { font: 600 19px/1 var(--sans); fill: var(--ink); }
+  #s-architecture .t-s { font: 16px/1 var(--sans); fill: var(--muted); }
+  #s-architecture .t-model { font: 400 34px/1 var(--serif); fill: var(--ink); }
+  #s-architecture .t-model-sub { font: 16px/1 var(--mono); fill: var(--muted); }
+
+  #s-architecture .beats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    margin-top: 18px;
+  }
+  #s-architecture .beat {
+    display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 12px;
+    padding-top: 14px; border-top: 2px solid var(--rule);
+  }
+  #s-architecture .beat .n { font: 500 16px/1 var(--mono); color: var(--accent); }
+  #s-architecture .beat p { font-size: 21px; line-height: 1.35; color: var(--ink-2); }
+</style>
+<script>
+  (() => {
+    const root = document.getElementById('s-architecture');
+    const beats = [...root.querySelectorAll('.beat')];
+
+    const sync = () => {
+      const shown = beats.filter((b) => b.classList.contains('shown')).length;
+      root.dataset.reveal = String(shown);
+    };
+
+    const observer = new MutationObserver(sync);
+    beats.forEach((b) => observer.observe(b, { attributes: true, attributeFilter: ['class'] }));
+    root.addEventListener('slide:enter', () => { root.dataset.reveal = '0'; });
+    sync();
+  })();
+</script>
+<section class="slide" id="s-failures" data-title="Four ways a good model fails">
+  <p class="kicker">03 · Why they fail</p>
+  <h2>Four ways a good model <em>fails</em>.</h2>
+
+  <div class="stack" data-tabs>
+    <div class="tab-list" role="tablist">
+      <button type="button" data-tab="context" aria-selected="true">Context rot</button>
+      <button type="button" data-tab="tools">Tool sprawl</button>
+      <button type="button" data-tab="silent">Silent success</button>
+      <button type="button" data-tab="memory">No memory</button>
+    </div>
+
+    <div class="tab-panel" data-panel="context">
+      <div class="fault">
+        <div class="fault-row">
+          <span class="fault-k">Symptom</span>
+          <p>Sharp early. Deep into the run, it contradicts its own decision.</p>
+        </div>
+        <div class="fault-row">
+          <span class="fault-k">Cause</span>
+          <p>Every token competes for attention; recall fades as the window fills.</p>
+        </div>
+        <div class="fault-row fix">
+          <span class="fault-k">Harness fix</span>
+          <p>Compact the history, clear stale tool output, load files on demand.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="tools" hidden>
+      <div class="fault">
+        <div class="fault-row">
+          <span class="fault-k">Symptom</span>
+          <p>The same tool twice, or the near-identical one beside it.</p>
+        </div>
+        <div class="fault-row">
+          <span class="fault-k">Cause</span>
+          <p>Overlapping tools create ambiguous choices and eat the window.</p>
+        </div>
+        <div class="fault-row fix">
+          <span class="fault-k">Harness fix</span>
+          <p>Fewer tools, one verb each, named for what they return.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="silent" hidden>
+      <div class="fault">
+        <div class="fault-row">
+          <span class="fault-k">Symptom</span>
+          <p>It reports done. The trace shows that no check ran.</p>
+        </div>
+        <div class="fault-row">
+          <span class="fault-k">Cause</span>
+          <p>With no check, <em>looks done</em> is the only stop signal it has.</p>
+        </div>
+        <div class="fault-row fix">
+          <span class="fault-k">Harness fix</span>
+          <p>A verify step that returns pass or fail, inside the loop.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="memory" hidden>
+      <div class="fault">
+        <div class="fault-row">
+          <span class="fault-k">Symptom</span>
+          <p>A new session walks back into last week's dead end.</p>
+        </div>
+        <div class="fault-row">
+          <span class="fault-k">Cause</span>
+          <p>State lives in the window, and the window is discarded.</p>
+        </div>
+        <div class="fault-row fix">
+          <span class="fault-k">Harness fix</span>
+          <p>Notes on disk, read at start, small enough to be read.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:15.</strong> Four ways the same good model fails, and each one is a harness part, not a model part.
+    Context rot: Anthropic's context engineering post (29 Sep 2025) states that as the number of tokens in the window
+    increases, the model's ability to recall information from that context decreases, across all models. The tell in a
+    trace is a file re-read that was already read, or a decision reversed late in the run.</p>
+    <p>Tool sprawl: the same post calls bloated tool sets that overlap in function "one of the most common failure
+    modes we see", because the model faces ambiguous decision points about which tool applies. The tell is a failed
+    call followed immediately by a near-identical call to a sibling tool.</p>
+    <p>Silent success: Anthropic's Claude Code best practices say it plainly — "Claude stops when the work looks done.
+    Without a check it can run, 'looks done' is the only signal available, and you become the verification loop." The
+    tell is a final message that claims the tests pass, with no test command anywhere in the trace.</p>
+    <p>No memory: the context post recommends structured note-taking precisely because state held only in the window is
+    lost across dozens of tool calls. The tell is a repeat of last session's dead end, discovered at the same cost.</p>
+    <p>Transition: that is the theory. Here is one task, run twice through the same model.</p>
+  </aside>
+</section>
+<style>
+  #s-failures .tab-panel { margin-top: 0; }
+  #s-failures .fault {
+    height: 430px;
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    border-top: 1px solid var(--rule);
+  }
+  #s-failures .fault-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 40px;
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  #s-failures .fault-k {
+    font: 500 17px/1.4 var(--mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #s-failures .fault-row p { font-size: 29px; line-height: 1.4; color: var(--ink); }
+  #s-failures .fault-row p em { font-style: italic; color: var(--muted); }
+  #s-failures .fix .fault-k { color: var(--ok); }
+  #s-failures .fix p { color: var(--ok); }
+</style>
+<section class="slide" id="s-same-task" data-title="Same task, two harnesses">
+  <p class="kicker">03 · Why they fail</p>
+  <h2>Same task. Two <em>harnesses</em>.</h2>
+
+  <div class="stack" data-tabs>
+    <div class="tab-list" role="tablist">
+      <button type="button" data-tab="before" aria-selected="true">Before</button>
+      <button type="button" data-tab="after">After</button>
+    </div>
+
+    <div class="tab-panel" data-panel="before">
+      <p class="ba-lead">One tool. No scope, no check, no exit condition.</p>
+      <pre><code><span class="tok-c">// the whole interface: one tool, no rules</span>
+{
+  <span class="tok-s">"name"</span>: <span class="tok-s">"shell"</span>,
+  <span class="tok-s">"description"</span>: <span class="tok-s">"Run any command."</span>,
+  <span class="tok-s">"input_schema"</span>: { <span class="tok-s">"command"</span>: <span class="tok-s">"string"</span> }
+}
+
+<span class="tok-c">// loop: run it, append output, repeat until "done"</span></code></pre>
+      <div class="ba-out">
+        <span class="chip bad">done</span>
+        <span class="small muted">No check ran. The word is the only evidence.</span>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="after" hidden>
+      <p class="ba-lead">Three scoped tools. One verify gate it cannot skip.</p>
+      <pre><code><span class="tok-c">// three tools, one verb each</span>
+<span class="tok-f">read</span>(path, range)     <span class="tok-c">// read-only</span>
+<span class="tok-f">edit</span>(path, old, new)  <span class="tok-c">// exact match or fail</span>
+<span class="tok-f">verify</span>(cmd)           <span class="tok-c">// exit code is the truth</span>
+
+<span class="tok-c">// loop: plan -> act -> verify</span>
+<span class="tok-c">// verify fails: read the error, fix, verify again</span></code></pre>
+      <div class="ba-out">
+        <span class="chip ok">passes, verified</span>
+        <span class="small muted">Exit 0 recorded in the trace.</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="small muted mt-auto">The model is identical in both runs. Only the tool schema and the loop changed.</p>
+
+  <aside class="notes">
+    <p><strong>~1:15.</strong> Same task, same model, same repository. The before run gets one general shell and a loop
+    that stops when the model says it is done. The after run gets three tools, each with one job, plus an explicit
+    verify call whose exit code the loop can read.</p>
+    <p>The before trace is the one you have seen: a long chain of shell calls, a plausible patch, and a confident final
+    message. Nothing false was said. Nothing was checked either, so a wrong patch and a right patch leave identical
+    traces and identical cost. That is why the failure survives review — the harness had no opinion about truth.</p>
+    <p>The after trace costs one more step and produces a pass or fail the loop can act on. This is the claim from
+    Anthropic's Claude Code guidance: give the model a check it can run and "the loop closes on its own"; without
+    one, "you become the verification loop".</p>
+    <p>Nothing in either block is model code. It is harness code, and it is the part we own.</p>
+    <p>Transition: if that sounds like an anecdote, the published ablations say the same thing at scale.</p>
+  </aside>
+</section>
+<style>
+  #s-same-task .tab-panel { margin-top: 0; }
+  #s-same-task .ba-lead {
+    font: 500 18px/1.4 var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  #s-same-task pre { max-width: 1000px; font-size: 21px; }
+  #s-same-task .ba-out { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
+</style>
+<section class="slide" id="s-evidence" data-title="Scaffolding moves the number">
+  <p class="kicker">03 · Why they fail</p>
+  <h2>Scaffolding moves the <em>number</em>.</h2>
+
+  <svg class="bars" viewBox="0 0 1360 420" role="img"
+       aria-label="SWE-bench Lite resolved rate with GPT-4 Turbo: 2.7 percent with no tools, 11.0 percent with a bare shell, 15.0 percent with agent tools and no lint gate, 18.0 percent with agent tools and the lint gate.">
+    <line class="axis" x1="60" y1="350" x2="1300" y2="350"/>
+
+    <rect class="b1" x="90" y="305" width="220" height="45" rx="3"/>
+    <text class="v" x="200" y="289" text-anchor="middle">2.7%</text>
+    <text class="k" x="200" y="388" text-anchor="middle">Patch, no tools</text>
+
+    <rect class="b2" x="410" y="167" width="220" height="183" rx="3"/>
+    <text class="v" x="520" y="151" text-anchor="middle">11.0%</text>
+    <text class="k" x="520" y="388" text-anchor="middle">Shell only</text>
+
+    <rect class="b3" x="730" y="100" width="220" height="250" rx="3"/>
+    <text class="v" x="840" y="84" text-anchor="middle">15.0%</text>
+    <text class="k" x="840" y="388" text-anchor="middle">Tools, no lint</text>
+
+    <rect class="b4" x="1050" y="50" width="220" height="300" rx="3"/>
+    <text class="v accent" x="1160" y="34" text-anchor="middle">18.0%</text>
+    <text class="k" x="1160" y="388" text-anchor="middle">Tools + lint</text>
+  </svg>
+
+  <div class="src">
+    <p class="small muted">SWE-bench Lite, 300 tasks · GPT-4 Turbo in all four runs · Yang et al., SWE-agent, NeurIPS 2024 (Tables 1 and 3)</p>
+    <p class="small accent">Same model: 2.7% to 18.0% resolved. Third bar is that agent with its edit linter removed.</p>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:30.</strong> This is the same model four times. GPT-4 Turbo, SWE-bench Lite, 300 real GitHub issues,
+    scored by the repository's own tests. The only thing that changes across the bars is the interface and the loop
+    around the model.</p>
+    <p>With the model reading retrieved files and writing a patch in one shot, 2.67% resolve. Give it a plain Linux
+    shell and let it work interactively, 11.00%. Give it purpose-built tools — a file viewer with line numbers, a
+    search that summarises, an editor that refuses edits that do not apply — 18.00%. The paper reports that as a 64%
+    relative increase over the shell-only agent, same model.</p>
+    <p>The fourth comparison is the one I care about: take the full agent and remove only the linter on edits. 15.0%.
+    The agent still reads, still searches, still edits. One harness check that returns a signal costs three points.</p>
+    <p>What this does not prove: it is one model from 2024, one benchmark, 300 tasks, and the authors report that
+    per-instance results move between runs even when the average holds. It does not prove a gain of the same size
+    transfers to our repository. Nothing in a public benchmark is our codebase.</p>
+    <p>Which is the point of the next slide: if the number moves this much on someone else's repo, you cannot tune a
+    harness for yours without measuring yours.</p>
+  </aside>
+</section>
+<style>
+  #s-evidence .bars { width: 100%; height: auto; margin-top: 4px; }
+  #s-evidence .bars .axis { stroke: var(--rule); stroke-width: 2; }
+  #s-evidence .bars .b1 { fill: var(--ink); opacity: .22; }
+  #s-evidence .bars .b2 { fill: var(--ink); opacity: .38; }
+  #s-evidence .bars .b3 { fill: var(--ink); opacity: .58; }
+  #s-evidence .bars .b4 { fill: var(--accent); }
+  #s-evidence .bars .v {
+    font-family: var(--mono); font-size: 30px; font-weight: 500; fill: var(--ink);
+  }
+  #s-evidence .bars .k {
+    font-family: var(--mono); font-size: 19px; fill: var(--muted);
+  }
+  #s-evidence .bars .accent { fill: var(--accent); }
+  #s-evidence .src { margin-top: 18px; display: grid; gap: 6px; }
+</style>
+<section class="slide" id="s-evals" data-title="You cannot tune what you do not measure">
+  <p class="kicker">03 · Why they fail</p>
+  <h2>You cannot tune what you do not <em>measure</em>.</h2>
+
+  <div class="stack" data-tabs>
+    <div class="tab-list" role="tablist">
+      <button type="button" data-tab="suite" aria-selected="true">Task suite</button>
+      <button type="button" data-tab="signals">Signals</button>
+      <button type="button" data-tab="gate">Gate</button>
+    </div>
+
+    <div class="tab-panel" data-panel="suite">
+      <div class="suite">
+        <div>
+          <span class="big-number">20–50</span>
+          <p class="suite-cap">tasks, from your own repo</p>
+        </div>
+        <ul class="clean suite-list">
+          <li><span class="tick">01</span> Start from a failure you already had.</li>
+          <li><span class="tick">02</span> End in a state a script can check.</li>
+          <li><span class="tick">03</span> Two engineers agree on the verdict.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="signals" hidden>
+      <div class="sig">
+        <div class="sig-row">
+          <span class="sig-name">pass@1</span>
+          <span class="sig-what">solved on the first attempt</span>
+          <span class="sig-dir">higher</span>
+        </div>
+        <div class="sig-row">
+          <span class="sig-name">cost / success</span>
+          <span class="sig-what">spend per solved task</span>
+          <span class="sig-dir">lower</span>
+        </div>
+        <div class="sig-row">
+          <span class="sig-name">false completion</span>
+          <span class="sig-what">said done, the check disagrees</span>
+          <span class="sig-dir">lower</span>
+        </div>
+        <div class="sig-row">
+          <span class="sig-name">review minutes</span>
+          <span class="sig-what">human time per task</span>
+          <span class="sig-dir">lower</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="gate" hidden>
+      <pre><code><span class="tok-c">$</span> harness-eval run --suite ./evals <span class="tok-c"># 42 tasks</span>
+  pass@1        0.78 → <span class="tok-bad">0.71</span>  regression
+  cost/success  $0.38 → $0.44
+  merge         <span class="tok-bad">blocked</span></code></pre>
+      <p class="small muted">Example run. The suite runs on every pull request that touches the harness.</p>
+    </div>
+  </div>
+<aside class="notes">
+  <p><strong>~1:15.</strong> Public benchmarks measure a model against someone else's repository. SWE-bench Verified is a 500-task subset of SWE-bench, reviewed by humans so each task is solvable (Anthropic, "Raising the bar on SWE-bench Verified", Jan 2025). By early 2026 that benchmark is near saturation above 80% (Anthropic, "Demystifying evals for AI agents", Jan 2026). Neither number tells you whether the harness can fix your backlog.</p>
+  <p>Anthropic's guidance is specific: 20 to 50 simple tasks drawn from real failures is a great start, because early changes have a large effect and small samples suffice (same post, Step 0). An ambiguous task becomes noise in the metric.</p>
+  <p>What you get in week one is a number that survives an argument. Before the suite, "the agent feels worse" is an opinion. After it, a regression is a red build.</p>
+  <p>Signals: pass@1 is Anthropic's definition — the fraction of tasks solved on the first try. Cost per success is the metric Anthropic tracks as "cost per task". False completion is documented directly in the SWE-bench post: the model cannot see the grading tests, so it often "thinks" it has succeeded when the task actually failed. Review minutes is our own metric; no external source for it, treat the number as illustrative.</p>
+  <p>The gate is the whole point. If a harness change lowers pass@1, it does not merge.</p>
+  <p>Next: the suite is not free to run.</p>
+</aside>
+
+</section>
+
+<style>
+  #s-evals .tab-panel {
+    height: 404px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  #s-evals .suite {
+    display: grid; grid-template-columns: 400px 1fr; gap: 72px; align-items: center;
+  }
+  #s-evals .big-number { display: block; font-size: 132px; }
+  #s-evals .suite-cap {
+    font: 500 19px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin-top: 14px;
+  }
+  #s-evals .suite-list li {
+    display: grid; grid-template-columns: 42px 1fr; gap: 18px;
+    font-size: 26px; line-height: 1.35;
+  }
+  #s-evals .tick { font: 500 17px/2 var(--mono); color: var(--accent); }
+
+  #s-evals .sig-row {
+    display: grid; grid-template-columns: 300px 1fr 110px; gap: 28px;
+    align-items: baseline; padding: 24px 0; border-top: 1px solid var(--rule);
+  }
+  #s-evals .sig-row:first-child { border-top: 0; }
+  #s-evals .sig-name { font: 500 25px/1 var(--mono); }
+  #s-evals .sig-what { font-size: 25px; color: var(--ink-2); }
+  #s-evals .sig-dir {
+    font: 500 16px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); text-align: right;
+  }
+
+  #s-evals .gate pre { width: 100%; }
+  #s-evals .tab-panel[data-panel="gate"] { justify-content: center; gap: 22px; }
+</style>
+
+<section class="slide" id="s-cost" data-title="What the harness costs">
+  <p class="kicker">04 · Cost and risk</p>
+  <h2>Every harness change has a <em>bill</em>.</h2>
+
+  <div class="stack" data-tabs>
+    <div class="tab-list" role="tablist">
+      <button type="button" data-tab="tokens" aria-selected="true">Tokens</button>
+      <button type="button" data-tab="latency">Latency</button>
+      <button type="button" data-tab="review">Review</button>
+    </div>
+
+    <div class="tab-panel" data-panel="tokens">
+      <div class="sum">
+        <span class="lbl">Retrieved context, per turn <span class="tag">Illustrative</span></span>
+        <span class="val">6,000 tok</span>
+
+        <span class="lbl">Turns per task <span class="tag">Illustrative</span></span>
+        <span class="val">20</span>
+
+        <span class="rule"></span>
+
+        <span class="lbl">Added input per task</span>
+        <span class="val">120k tok</span>
+
+        <span class="lbl strong">At $2 / MTok input, Sonnet 5.5</span>
+        <span class="val">$0.24</span>
+
+        <span class="lbl strong">Same tokens, cache read at $0.10 / MTok</span>
+        <span class="val">$0.012</span>
+      </div>
+      <p class="small muted src">Anthropic API pricing, Claude Sonnet 5.5: $2 input / $10 output per MTok. Read 24 Oct 2026.</p>
+    </div>
+
+    <div class="tab-panel" data-panel="latency" hidden>
+      <div class="track">
+        <span class="hop">model</span>
+        <span class="hop add">retrieve</span>
+        <span class="hop">tool</span>
+        <span class="hop">model</span>
+        <span class="hop add">verify</span>
+        <span class="hop">tool</span>
+      </div>
+      <p>Each step waits for the one before it. Two extra model calls are two more round trips on every task.</p>
+      <p class="small muted">A retriever that runs on every turn is a tax. One that runs when the model asks is a tool.</p>
+    </div>
+
+    <div class="tab-panel" data-panel="review" hidden>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Harness that verifies</h3>
+          <p>A passing check is attached to every diff. The reviewer reads the change, not the transcript.</p>
+          <p class="cost-line">Pays in review minutes, now.</p>
+        </div>
+        <div class="card">
+          <h3>Harness that does not</h3>
+          <p>The reviewer reconstructs intent from a log. Defects arrive as incidents, with a customer attached.</p>
+          <p class="cost-line">Pays in incident time, later.</p>
+        </div>
+      </div>
+      <p class="small">A cheap model with a good harness can beat an expensive model with a bad one. <span class="tag">opinion</span></p>
+    </div>
+  </div>
+
+  <p class="small muted mt-auto">Same model. Different harness. Different score.</p>
+<aside class="notes">
+  <p><strong>~1:00.</strong> Three costs. Only one of them appears on the invoice.</p>
+  <p>Tokens: context assembly and memory retrieval are re-sent on every turn. The arithmetic on screen is 6,000 tokens per turn times 20 turns — 120,000 input tokens per task. Both inputs are illustrative, not a published measurement. At Claude Sonnet 5.5's $2 per million input tokens that is $0.24 per task. The same tokens served as cache reads at $0.10 per million cost $0.012 (Anthropic API pricing page, read 24 Oct 2026). Caching is a harness feature, not a billing trick.</p>
+  <p>Latency: every extra model call and tool round trip is serial. One verifier call that prevents five turns of rework pays for itself. A retriever that blocks every turn does not.</p>
+  <p>Review: a harness that verifies charges minutes at the diff. A harness that does not charges incident time later. Anthropic's evals post describes teams without evals as stuck in a loop: fix one failure, create another, find out in production.</p>
+  <p>The bottom line is sourced: Anthropic states that SWE-bench Verified performance "can vary significantly" with the scaffolding, on the same model. The line in the review tab — a cheap model with a good harness beats an expensive model with a bad one — I could not source as a measured comparison. It is labelled opinion on the slide, and it is opinion.</p>
+  <p>Measure cost per successful task, not cost per call. Next: where the harness is allowed to act.</p>
+</aside>
+
+</section>
+
+<style>
+  #s-cost .tab-panel {
+    height: 360px;
+    display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  }
+  #s-cost .tag {
+    display: inline-block; font: 500 16px/1 var(--mono); letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 5px 10px; margin-left: 12px; vertical-align: 2px;
+  }
+  #s-cost .sum {
+    display: grid; grid-template-columns: 1fr 260px; gap: 16px 40px; align-items: baseline;
+  }
+  #s-cost .sum .lbl { font-size: 24px; color: var(--ink-2); }
+  #s-cost .sum .val { font: 500 26px/1 var(--mono); text-align: right; }
+  #s-cost .sum .rule { grid-column: 1 / -1; border-top: 1px solid var(--rule); margin: 4px 0; }
+  #s-cost .sum .lbl.strong { color: var(--ink); font-weight: 500; }
+  #s-cost .src { line-height: 1.35; }
+
+  #s-cost .track { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  #s-cost .hop {
+    padding: 20px 10px; text-align: center; border: 1px solid var(--rule);
+    border-radius: 10px; background: var(--card); font: 500 19px/1 var(--mono); color: var(--ink-2);
+  }
+  #s-cost .hop.add { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  #s-cost .tab-panel[data-panel="latency"] p { max-width: 1180px; }
+
+  #s-cost .card { display: flex; flex-direction: column; gap: 14px; }
+  #s-cost .card p { font-size: 21px; }
+  #s-cost .cost-line { margin-top: auto; color: var(--accent); font-family: var(--mono); font-size: 19px; }
+</style>
+
+<section class="slide" id="s-guardrails" data-title="The trust boundary">
+  <p class="kicker">04 · Cost and risk</p>
+  <h2>Draw the <em>trust boundary</em>.</h2>
+
+  <div class="grid-4 tiers">
+    <div class="card tier step">
+      <span class="tier-n">01</span>
+      <h3>Read only</h3>
+      <p>Files, logs, test output.</p>
+      <span class="ctrl">path allowlist</span>
+    </div>
+    <div class="card tier step">
+      <span class="tier-n">02</span>
+      <h3>Write in the repo</h3>
+      <p>Edits to tracked files.</p>
+      <span class="ctrl">sandbox</span>
+    </div>
+    <div class="card tier step">
+      <span class="tier-n">03</span>
+      <h3>Execute</h3>
+      <p>Build, test, migrate.</p>
+      <span class="ctrl">approval gate for<br>irreversible actions</span>
+    </div>
+    <div class="card tier step">
+      <span class="tier-n">04</span>
+      <h3>Reach the network</h3>
+      <p>APIs, registries, the open web.</p>
+      <span class="ctrl">egress allowlist</span>
+    </div>
+  </div>
+
+  <p class="small muted tier-note step">Move right only when the task needs it.</p>
+
+  <p class="callout mt-auto step">Prompt injection is an input-trust problem, not a model-behaviour problem.</p>
+<aside class="notes">
+  <p><strong>~1:15.</strong> Four tiers, in the order you should grant them. Read only comes first, always.</p>
+  <p>Write inside the repo is tier two. OpenAI's Codex calls this <code>workspace-write</code> and describes it as the default low-friction mode: the agent reads and edits inside a boundary, and routine commands run there without a prompt. When a task needs to go beyond the boundary, the approval flow takes over (OpenAI Codex sandbox documentation).</p>
+  <p>Execute is where the blast radius jumps. Claude Code's manual mode starts read-only and asks before edits or commands; unmatched commands require approval by default, and an allow rule for part of a command does not skip the prompt (Anthropic, Claude Code security documentation). Put the approval gate on irreversible actions only: migrations, deletes, force-push, deploys. Approving everything trains people to click yes.</p>
+  <p>Network last, and never as a blanket "internet on". Claude Code's cloud sessions limit network access by default and can allow only specific domains; its local sandbox isolates bash commands at the filesystem and network level.</p>
+  <p>The callout is the part leadership needs. OWASP LLM01:2025 defines indirect prompt injection as instructions arriving through websites or files, and states that fool-proof prevention is unclear. Its mitigations are privilege control, least privilege, human approval for high-risk actions, and segregating untrusted content. OWASP LLM06:2025 names the root cause of excessive agency: excessive functionality, excessive permissions, excessive autonomy. None of that is fixed by a better prompt.</p>
+  <p>So untrusted text never carries instructions. A README, an issue body, a web page, a test failure: all data. If any of them can issue orders, the agent is a confused deputy.</p>
+  <p>Guardrails are the floor. Next: who builds and owns this.</p>
+</aside>
+
+</section>
+
+<style>
+  #s-guardrails h2 { margin-bottom: 24px; }
+  #s-guardrails .tiers { margin-top: 8px; flex: 1; }
+  #s-guardrails .tier {
+    display: flex; flex-direction: column; gap: 12px; min-height: 316px;
+    border-top-width: 4px; border-top-color: var(--rule);
+  }
+  #s-guardrails .tier:nth-child(2) { border-top-color: #d9a08b; }
+  #s-guardrails .tier:nth-child(3) { border-top-color: #c96a45; }
+  #s-guardrails .tier:nth-child(4) { border-top-color: var(--accent); }
+  #s-guardrails .tier-n {
+    font: 500 17px/1 var(--mono); letter-spacing: .12em; color: var(--accent);
+  }
+  #s-guardrails .tier h3 { font-size: 25px; margin: 0; }
+  #s-guardrails .tier p { font-size: 21px; }
+  #s-guardrails .ctrl {
+    margin-top: auto; display: block; border-radius: 10px; padding: 12px 14px;
+    background: var(--accent-soft); color: var(--accent);
+    font: 500 18px/1.35 var(--mono);
+  }
+  #s-guardrails .tier-note { margin-top: 22px; }
+</style>
+
+<section class="slide" id="s-team" data-title="Who builds a harness">
+  <p class="kicker">05 · Team and process</p>
+  <h2>Nobody owns the harness, so it <em>rots</em>.</h2>
+
+  <div class="grid-3 roles">
+    <div class="card">
+      <span class="num">01</span>
+      <h3>Harness engineer</h3>
+      <p><span class="owns">owns</span> the loop and the tool layer</p>
+    </div>
+    <div class="card">
+      <span class="num">02</span>
+      <h3>Eval owner</h3>
+      <p><span class="owns">owns</span> the task suite and the gate</p>
+    </div>
+    <div class="card">
+      <span class="num">03</span>
+      <h3>Context owner</h3>
+      <p><span class="owns">owns</span> what enters the window</p>
+    </div>
+    <div class="card wide">
+      <span class="num">04</span>
+      <h3>Security reviewer</h3>
+      <p><span class="owns">owns</span> the trust boundary: tools, permissions, data</p>
+    </div>
+    <div class="card">
+      <span class="num">05</span>
+      <h3>Product owner</h3>
+      <p><span class="owns">owns</span> which workflows get a harness</p>
+    </div>
+  </div>
+
+  <p class="small start-line">Two or three people can start this, part time.</p>
+
+  <aside class="notes">
+    <p><strong>~1:00.</strong> Ownership is the difference between a demo and infrastructure. Without one, the prompt grows, the tool list grows, and nobody can say whether quality moved.</p>
+    <p>Anthropic's evals guidance, "Demystifying evals for AI agents," reports that a suite stays useful only with ownership: an eval suite is, in their words, "a living artifact that needs ongoing attention and clear ownership to remain useful." They found dedicated evals teams owning the core infrastructure works, with product teams contributing the tasks.</p>
+    <p>Platform engineering's "What is platform engineering?" makes the same point: start with a small minimum viable platform, not a department. The smallest viable team here is two people, part time; a third makes it durable. A harness engineer and an eval owner run the loop. The product owner picks the first workflow. Security review is borrowed for the trust boundary, because Anthropic's "Trustworthy agents in practice" says a well-trained model can still be exploited through "a poorly configured harness, an overly permissive tool, or an exposed environment."</p>
+    <p>Next: how the loop actually runs.</p>
+  </aside>
+</section>
+<style>
+  #s-team .roles { margin-top: 4px; }
+  #s-team .roles .card { min-height: 206px; }
+  #s-team .roles .card.wide { grid-column: span 2; }
+  #s-team .owns {
+    display: block; margin-bottom: 10px;
+    font: 500 16px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  }
+  #s-team .start-line { margin-top: 26px; color: var(--ink-2); }
+  #s-team .start-line::before {
+    content: ""; display: inline-block; width: 34px; height: 1px;
+    background: var(--accent); vertical-align: middle; margin-right: 14px;
+  }
+</style>
+<section class="slide" id="s-iteration" data-title="The improvement loop">
+  <p class="kicker">05 · Team and process</p>
+  <h2>Change one thing. <em>Measure</em> again.</h2>
+
+  <div class="loop">
+    <svg class="ring" viewBox="0 0 1360 500" aria-hidden="true" focusable="false">
+      <ellipse cx="680" cy="280" rx="300" ry="140" fill="none" stroke="var(--rule)" stroke-width="1.5"/>
+      <circle cx="680" cy="140" r="4.5" fill="var(--accent)"/>
+      <circle cx="965.3" cy="236.7" r="4.5" fill="var(--accent)"/>
+      <circle cx="856.3" cy="393.3" r="4.5" fill="var(--accent)"/>
+      <circle cx="503.7" cy="393.3" r="4.5" fill="var(--accent)"/>
+      <circle cx="394.7" cy="236.7" r="4.5" fill="var(--accent)"/>
+      <g fill="var(--muted)" opacity=".55">
+        <path d="M-6 -4.5 L6 0 L-6 4.5 Z" transform="translate(856.3 166.7) rotate(18.7)"/>
+        <path d="M-6 -4.5 L6 0 L-6 4.5 Z" transform="translate(965.3 323.3) rotate(124.9)"/>
+        <path d="M-6 -4.5 L6 0 L-6 4.5 Z" transform="translate(680 420) rotate(180)"/>
+        <path d="M-6 -4.5 L6 0 L-6 4.5 Z" transform="translate(394.7 323.3) rotate(-124.9)"/>
+        <path d="M-6 -4.5 L6 0 L-6 4.5 Z" transform="translate(503.7 166.7) rotate(-18.7)"/>
+      </g>
+    </svg>
+
+    <ol class="loop-labels">
+      <li class="loop-step step p1"><span class="n">01</span><p>Pick a failed trace</p></li>
+      <li class="loop-step step p2"><span class="n">02</span><p>Name the harness cause</p></li>
+      <li class="loop-step step p3"><span class="n">03</span><p>Change one harness part</p></li>
+      <li class="loop-step step p4"><span class="n">04</span><p>Rerun the suite</p></li>
+      <li class="loop-step step p5"><span class="n">05</span><p>Keep or revert</p></li>
+    </ol>
+  </div>
+
+  <p class="small muted loop-rule">One change per run, or you learn nothing.</p>
+
+  <aside class="notes">
+    <p><strong>~1:00.</strong> This is ordinary engineering discipline applied to a probabilistic system. Anthropic's "Demystifying evals for AI agents" defines a transcript, or trace, as "the complete record of a trial, including outputs, tool calls, reasoning, intermediate results, and any other interactions," and says reading transcripts is how you verify the eval measures what matters.</p>
+    <p>Hamel Husain's "Your AI Product Needs Evals" makes logging traces the prerequisite, then says to remove all friction from looking at them. Pick the failure, name which harness part caused it, change that one part, rerun the same suite.</p>
+    <p>One change per run: change two and a pass tells you nothing about which one worked. Keep the change only if the suite moves; otherwise revert it and name the next cause. Traces are the spec.</p>
+    <p>Next: the first thirty days.</p>
+  </aside>
+</section>
+<style>
+  #s-iteration .loop { position: relative; height: 500px; margin-top: 2px; }
+  #s-iteration .ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #s-iteration .loop-labels { list-style: none; margin: 0; padding: 0; }
+  #s-iteration .loop-step { position: absolute; }
+  #s-iteration .loop-step .n {
+    display: block; margin-bottom: 9px;
+    font: 500 16px/1 var(--mono); letter-spacing: .14em; color: var(--accent);
+  }
+  #s-iteration .loop-step p { font-size: 25px; line-height: 1.25; color: var(--ink); }
+  #s-iteration .p1 { left: 480px; top: 48px; width: 400px; text-align: center; }
+  #s-iteration .p2 { left: 1010px; top: 205px; width: 310px; }
+  #s-iteration .p3 { left: 880px; top: 366px; width: 360px; }
+  #s-iteration .p4 { left: 120px; top: 366px; width: 350px; text-align: right; }
+  #s-iteration .p5 { left: 50px; top: 205px; width: 300px; text-align: right; }
+  #s-iteration .loop-rule { margin-top: 12px; }
+</style>
+<section class="slide" id="s-30days" data-title="First 30 days">
+  <p class="kicker">05 · Team and process</p>
+  <h2>What the first thirty days <em>look like</em>.</h2>
+
+  <ol class="days">
+    <li class="step">
+      <span class="when">Week 1</span>
+      <p>Twenty real tasks. Pass or fail, by hand.</p>
+    </li>
+    <li class="step">
+      <span class="when">Week 2</span>
+      <p>A full trace of every run.</p>
+    </li>
+    <li class="step">
+      <span class="when">Week 3</span>
+      <p>One verification step. One scoped tool set.</p>
+    </li>
+    <li class="step">
+      <span class="when">Week 4</span>
+      <p>The suite in CI. A regression gate.</p>
+    </li>
+    <li class="step">
+      <span class="when">Ongoing</span>
+      <p>One named owner. A weekly trace review.</p>
+    </li>
+  </ol>
+
+  <aside class="notes">
+    <p><strong>~1:00.</strong> Month one is measurement, not modernization. Anthropic's "Demystifying evals for AI agents" says to start with "20-50 simple tasks drawn from real failures," and to keep regression evals at "a nearly 100% pass rate."</p>
+    <p>Week 1 is manual on purpose: you are learning the failure modes, not building tooling. Week 2 makes every run inspectable, because a failure you cannot replay is a rumor. Week 3 changes the harness: one verification step, and a tool set scoped to the task.</p>
+    <p>Week 4 moves the suite into CI so the gate runs on every commit, which Anthropic lists as a property of automated evals. Then keep one named owner and a weekly trace review.</p>
+    <p>Skip new models, new frameworks, and fine-tuning in month one. With no baseline you cannot attribute the change. Anthropic notes that teams without evals face weeks of testing when a new model lands, while teams with evals upgrade in days.</p>
+    <p>Next: how harness work goes wrong.</p>
+  </aside>
+</section>
+<style>
+  #s-30days .days { list-style: none; margin: 8px 0 0; padding: 0; }
+  #s-30days .days li {
+    display: grid; grid-template-columns: 170px 1fr; gap: 32px; align-items: baseline;
+    padding: 32px 0; border-top: 1px solid var(--rule);
+  }
+  #s-30days .days li:last-child { border-bottom: 1px solid var(--rule); }
+  #s-30days .when {
+    font: 500 17px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+  }
+  #s-30days .days p { font-size: 28px; line-height: 1.35; }
+</style>
+<section class="slide" id="s-antipatterns" data-title="How harness work goes wrong">
+  <p class="kicker">05 · Team and process</p>
+  <h2>How harness work <em>goes wrong</em>.</h2>
+
+  <div class="stack" data-tabs>
+    <div class="tab-list" role="tablist" aria-label="Harness antipatterns">
+      <button type="button" data-tab="overfit" aria-selected="true">Overfit to one task</button>
+      <button type="button" data-tab="sprawl">Prompt sprawl</button>
+      <button type="button" data-tab="hide">Fix by hiding failure</button>
+      <button type="button" data-tab="shadow">Shadow harness</button>
+    </div>
+
+    <div class="tab-panel" data-panel="overfit">
+      <div class="anti">
+        <div class="anti-card tell">
+          <div>
+            <p class="anti-label">The tell</p>
+            <p class="anti-claim">Your score climbs. Production does not.</p>
+          </div>
+          <p class="anti-note">The harness learned the tasks, not the work.</p>
+        </div>
+        <div class="anti-card fix">
+          <div>
+            <p class="anti-label">The countermeasure</p>
+            <p class="anti-claim">Hold out ten tasks. Rotate them each quarter.</p>
+          </div>
+          <p class="anti-note">Report the held-out number, never the tuned one.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="sprawl" hidden>
+      <div class="anti">
+        <div class="anti-card tell">
+          <div>
+            <p class="anti-label">The tell</p>
+            <p class="anti-claim">Every incident adds a paragraph. The rules start to cancel out.</p>
+          </div>
+          <p class="anti-note">Nothing is wrong with any single line.</p>
+        </div>
+        <div class="anti-card fix">
+          <div>
+            <p class="anti-label">The countermeasure</p>
+            <p class="anti-claim">Prune to rules that change behavior. Move hard rules into hooks.</p>
+          </div>
+          <p class="anti-note">Hooks are deterministic; prose is advisory.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="hide" hidden>
+      <div class="anti">
+        <div class="anti-card tell">
+          <div>
+            <p class="anti-label">The tell</p>
+            <p class="anti-claim">The failure leaves the dashboard. The bug stays in the product.</p>
+          </div>
+          <p class="anti-note">The suite is green because the suite was edited.</p>
+        </div>
+        <div class="anti-card fix">
+          <div>
+            <p class="anti-label">The countermeasure</p>
+            <p class="anti-claim">Grade on a check the agent cannot edit.</p>
+          </div>
+          <p class="anti-note">Then read the trace, not the summary.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="shadow" hidden>
+      <div class="anti">
+        <div class="anti-card tell">
+          <div>
+            <p class="anti-label">The tell</p>
+            <p class="anti-claim">One private harness beats the team's. Nobody can reproduce it.</p>
+          </div>
+          <p class="anti-note">It skips the review path everyone else uses.</p>
+        </div>
+        <div class="anti-card fix">
+          <div>
+            <p class="anti-label">The countermeasure</p>
+            <p class="anti-claim">Check the harness in. Every run lands as a reviewed diff.</p>
+          </div>
+          <p class="anti-note">Same tasks, same tools, same review.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~1:00.</strong> Each of these looks like progress for a month, then stops paying.</p>
+    <p><strong>Overfit.</strong> SWE-Bench+ (Aleithan et al., 2024) re-checked the top agent's passing patches: 32.67% had the fix leaked in the issue, 31.08% passed on tests too weak to prove correctness. After removing those tasks the resolve rate fell from 12.47% to 3.97%. Your twenty tasks can do the same thing to you.</p>
+    <p><strong>Sprawl.</strong> Anthropic's Claude Code guidance: if CLAUDE.md is too long, Claude "ignores half of it because important rules get lost in the noise." Prune, then turn hard rules into hooks, which run deterministically instead of advising.</p>
+    <p><strong>Hiding failure.</strong> METR (June 2025) reports frontier models "attempting (often successfully) to get a higher score by modifying the tests or scoring code." Anthropic's long-running agent harness keeps its feature list in JSON, and its prompt says it is "unacceptable to remove or edit tests because this could lead to missing or buggy functionality." The check has to sit outside the agent's write scope.</p>
+    <p><strong>Shadow harness.</strong> GitHub's cloud agent works in a branch and opens a pull request, and its docs say session logs "do not replace your own review and testing." A private stack on one laptop skips exactly that path.</p>
+    <p>Transition: none of these are model failures. They are process failures, and they are fixable this quarter.</p>
+  </aside>
+</section>
+<style>
+  #s-antipatterns .tab-list [data-tab] { font-size: 19px; padding: 12px 19px; }
+  #s-antipatterns .tab-panel { margin-top: 26px; }
+  #s-antipatterns .anti {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 26px; height: 400px;
+  }
+  #s-antipatterns .anti-card {
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-radius: 18px; padding: 34px 36px; min-width: 0;
+  }
+  #s-antipatterns .anti-card.tell { background: var(--paper-2); border: 1px solid var(--rule); }
+  #s-antipatterns .anti-card.fix {
+    background: var(--card); border: 1px solid var(--rule); border-top: 3px solid var(--accent);
+  }
+  #s-antipatterns .anti-label {
+    font: 500 16px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 24px;
+  }
+  #s-antipatterns .fix .anti-label { color: var(--accent); }
+  #s-antipatterns .anti-claim {
+    font-family: var(--serif); font-size: 33px; line-height: 1.26; letter-spacing: -.01em;
+    color: var(--ink);
+  }
+  #s-antipatterns .anti-note { font-size: 21px; line-height: 1.45; color: var(--muted); }
+</style>
+<section class="slide" id="s-changes" data-title="What changes for you">
+  <p class="kicker">06 · Payoff</p>
+  <h2>What changes for <em>you</em>.</h2>
+
+  <div class="change-grid">
+    <div class="card change-col">
+      <h3>If you lead</h3>
+      <ul class="clean change-list">
+        <li><span class="idx">01</span><span>Stop shopping for models first.</span></li>
+        <li><span class="idx">02</span><span>Fund the harness and its evals.</span></li>
+        <li><span class="idx">03</span><span>Ask for cost per successful task.</span></li>
+        <li><span class="idx">04</span><span>Reward the boring fixes.</span></li>
+      </ul>
+    </div>
+
+    <div class="card change-col">
+      <h3>If you build</h3>
+      <ul class="clean change-list">
+        <li><span class="idx">01</span><span>Own the loop, not the prompt.</span></li>
+        <li><span class="idx">02</span><span>Instrument every run.</span></li>
+        <li><span class="idx">03</span><span>Add verification before autonomy.</span></li>
+        <li><span class="idx">04</span><span>Keep the harness in the repo.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~0:45.</strong> One line for each half of the room.</p>
+    <p>If you lead: the model is the line item that gets cheaper every quarter. The harness is the part that compounds. Fund it, staff it, and ask for cost per successful task, not tokens per call.</p>
+    <p>If you build: you own the loop. Log every run, and add the check before you add autonomy.</p>
+    <p>Same sentence for both: stop tuning the model you rented; tune the system you own.</p>
+    <p>Transition: so what do you do on Monday?</p>
+  </aside>
+</section>
+<style>
+  #s-changes .change-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 30px;
+    height: 452px; margin-top: 6px;
+  }
+  #s-changes .change-col { display: flex; flex-direction: column; padding: 38px 40px; min-width: 0; }
+  #s-changes .change-col h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 36px; line-height: 1.1;
+    letter-spacing: -.01em; margin: 0 0 28px;
+  }
+  #s-changes .change-list { gap: 0; }
+  #s-changes .change-list li {
+    display: grid; grid-template-columns: 46px 1fr; align-items: baseline; gap: 4px;
+    padding: 17px 0; border-top: 1px solid var(--rule); font-size: 26px; line-height: 1.35;
+  }
+  #s-changes .change-list li:last-child { border-bottom: 1px solid var(--rule); }
+  #s-changes .idx { font: 500 16px/1 var(--mono); color: var(--accent); letter-spacing: .06em; }
+</style>
+<section class="slide center" id="s-close" data-title="Monday, and questions">
+  <p class="kicker">06 · Payoff</p>
+  <h2>Pick one agent. Give it a <em>harness</em>.</h2>
+  <p class="lede">The model will keep changing. The harness is the part you own.</p>
+
+  <div class="row close-row">
+    <span class="chip hot">This week: pick 20 tasks</span>
+    <span class="small muted close-questions">Questions</span>
+  </div>
+
+  <aside class="notes">
+    <p><strong>~0:35.</strong> Pick one agent that already matters, and give it a real harness: a loop you can read, tools you chose, context you control, a memory, an eval set, a boundary.</p>
+    <p>Then the single closing sentence: the model will keep changing, and the harness is the part you own.</p>
+    <p>Hand straight to questions.</p>
+  </aside>
+</section>
+<style>
+  #s-close h2 { margin-bottom: 30px; max-width: 1180px; }
+  #s-close .lede { max-width: 940px; }
+  #s-close .close-row { margin-top: 44px; gap: 26px; }
+  #s-close .close-questions { border-left: 1px solid var(--rule); padding-left: 26px; }
+</style>
+  <div class="deck-footer"><span>Harness engineering · 2026</span><span class="counter"></span></div>
+</main>
+<div class="progress"><span></span></div>
+<aside class="notes-panel" hidden></aside>
+<script>
+(() => {
+  const deck = document.querySelector('.deck');
+  const slides = [...deck.querySelectorAll(':scope > .slide')];
+  const bar = document.querySelector('.progress > span');
+  const counter = document.querySelector('.counter');
+  const notesPanel = document.querySelector('.notes-panel');
+  const pad = (n) => String(n).padStart(2, '0');
+  let i = 0;
+  let presenter = null;
+
+  function fit() {
+    deck.style.setProperty('--scale', Math.min(innerWidth / 1600, innerHeight / 900));
+  }
+
+  const stepsOf = (slide) => [...slide.querySelectorAll('.step')];
+
+  function go(n, { revealAll = false, fromHash = false } = {}) {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].classList.remove('active');
+    i = n;
+    const slide = slides[i];
+    slide.classList.add('active');
+    stepsOf(slide).forEach((s) => s.classList.toggle('shown', revealAll));
+    bar.style.width = ((i + 1) / slides.length) * 100 + '%';
+    counter.textContent = pad(i + 1) + ' / ' + pad(slides.length);
+    if (!fromHash) history.replaceState(null, '', '#' + (i + 1));
+    renderNotes();
+    slide.dispatchEvent(new CustomEvent('slide:enter'));
+  }
+
+  function next() {
+    const hidden = stepsOf(slides[i]).find((s) => !s.classList.contains('shown'));
+    if (hidden) { hidden.classList.add('shown'); renderNotes(); return; }
+    go(i + 1);
+  }
+
+  function prev() {
+    const shown = stepsOf(slides[i]).filter((s) => s.classList.contains('shown'));
+    if (shown.length) { shown[shown.length - 1].classList.remove('shown'); renderNotes(); return; }
+    go(i - 1, { revealAll: true });
+  }
+
+  function notesHtml(slide) {
+    const notes = slide.querySelector('.notes');
+    return notes ? notes.innerHTML : '<p>No notes.</p>';
+  }
+
+  function renderNotes() {
+    const slide = slides[i];
+    const title = slide.dataset.title || '';
+    if (!notesPanel.hidden) notesPanel.innerHTML = '<h4>' + pad(i + 1) + ' · ' + title + '</h4>' + notesHtml(slide);
+    if (presenter && !presenter.closed) {
+      const d = presenter.document;
+      const left = stepsOf(slide).filter((s) => !s.classList.contains('shown')).length;
+      d.getElementById('c').textContent = pad(i + 1) + ' / ' + pad(slides.length) + (left ? ' · ' + left + ' reveal(s) left' : '');
+      d.getElementById('t').textContent = title;
+      d.getElementById('n').innerHTML = notesHtml(slide);
+      d.getElementById('nx').textContent = slides[i + 1] ? 'Next: ' + (slides[i + 1].dataset.title || '') : 'Last slide';
+    }
+  }
+
+  function toggleNotes() {
+    notesPanel.hidden = !notesPanel.hidden;
+    renderNotes();
+  }
+
+  // Presenter window: open on a second screen, keep the deck on the projector.
+  function openPresenter() {
+    if (presenter && !presenter.closed) { presenter.focus(); return; }
+    presenter = window.open('', 'presenter', 'width=960,height=720');
+    if (!presenter) return;
+    presenter.document.write('<!doctype html><title>Presenter notes</title><style>' +
+      'body{margin:0;padding:36px 44px;background:#1b1a17;color:#f7f4ee;font:22px/1.55 -apple-system,system-ui,sans-serif}' +
+      '#c,#nx{font:15px/1 ui-monospace,Menlo,monospace;color:#e9a98c;letter-spacing:.08em}' +
+      'h1{font:400 40px/1.15 "Iowan Old Style",Georgia,serif;margin:14px 0 22px}' +
+      '#n p,#n li{margin:0 0 12px}#nx{margin-top:28px;color:#9a948a}code{font-family:ui-monospace,Menlo,monospace}' +
+      '</style><div id="c"></div><h1 id="t"></h1><div id="n"></div><div id="nx"></div>');
+    presenter.document.close();
+    presenter.document.addEventListener('keydown', onKey);
+    renderNotes();
+  }
+
+  function onKey(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t.closest && t.closest('input, textarea, select, [contenteditable]')) return;
+    const onButton = t.closest && t.closest('button, a');
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': next(); break;
+      case ' ': if (onButton) return; next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); break;
+      case 'Home': go(0); break;
+      case 'End': go(slides.length - 1); break;
+      case 'n': case 'N': toggleNotes(); break;
+      case 'p': case 'P': openPresenter(); break;
+      case 'f': case 'F':
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+        break;
+      default: return;
+    }
+    e.preventDefault();
+  }
+
+  // Generic tabs / before-after toggles: [data-tabs] > [data-tab="x"] + [data-panel="x"]
+  document.querySelectorAll('[data-tabs]').forEach((group) => {
+    const own = (el) => el.closest('[data-tabs]') === group;
+    const tabs = [...group.querySelectorAll('[data-tab]')].filter(own);
+    const panels = [...group.querySelectorAll('[data-panel]')].filter(own);
+    const select = (name) => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+      panels.forEach((p) => { p.hidden = p.dataset.panel !== name; });
+      group.dispatchEvent(new CustomEvent('tabs:change', { detail: name }));
+    };
+    tabs.forEach((t) => {
+      t.type = 'button';
+      t.setAttribute('role', 'tab');
+      t.addEventListener('click', () => select(t.dataset.tab));
+    });
+    const first = tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0];
+    if (first) select(first.dataset.tab);
+  });
+
+  addEventListener('resize', fit);
+  addEventListener('keydown', onKey);
+  addEventListener('hashchange', () => go(parseInt(location.hash.slice(1), 10) - 1 || 0, { fromHash: true }));
+  fit();
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1, { fromHash: true });
+})();
+</script>
+</body>
+</html>

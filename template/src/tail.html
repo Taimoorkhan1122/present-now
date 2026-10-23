@@ -1,0 +1,137 @@
+  <div class="deck-footer"><span>__FOOTER__</span><span class="counter"></span></div>
+</main>
+<div class="progress"><span></span></div>
+<aside class="notes-panel" hidden></aside>
+<script>
+(() => {
+  const deck = document.querySelector('.deck');
+  const slides = [...deck.querySelectorAll(':scope > .slide')];
+  const bar = document.querySelector('.progress > span');
+  const counter = document.querySelector('.counter');
+  const notesPanel = document.querySelector('.notes-panel');
+  const pad = (n) => String(n).padStart(2, '0');
+  let i = 0;
+  let presenter = null;
+
+  function fit() {
+    deck.style.setProperty('--scale', Math.min(innerWidth / 1600, innerHeight / 900));
+  }
+
+  const stepsOf = (slide) => [...slide.querySelectorAll('.step')];
+
+  function go(n, { revealAll = false, fromHash = false } = {}) {
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].classList.remove('active');
+    i = n;
+    const slide = slides[i];
+    slide.classList.add('active');
+    stepsOf(slide).forEach((s) => s.classList.toggle('shown', revealAll));
+    bar.style.width = ((i + 1) / slides.length) * 100 + '%';
+    counter.textContent = pad(i + 1) + ' / ' + pad(slides.length);
+    if (!fromHash) history.replaceState(null, '', '#' + (i + 1));
+    renderNotes();
+    slide.dispatchEvent(new CustomEvent('slide:enter'));
+  }
+
+  function next() {
+    const hidden = stepsOf(slides[i]).find((s) => !s.classList.contains('shown'));
+    if (hidden) { hidden.classList.add('shown'); renderNotes(); return; }
+    go(i + 1);
+  }
+
+  function prev() {
+    const shown = stepsOf(slides[i]).filter((s) => s.classList.contains('shown'));
+    if (shown.length) { shown[shown.length - 1].classList.remove('shown'); renderNotes(); return; }
+    go(i - 1, { revealAll: true });
+  }
+
+  function notesHtml(slide) {
+    const notes = slide.querySelector('.notes');
+    return notes ? notes.innerHTML : '<p>No notes.</p>';
+  }
+
+  function renderNotes() {
+    const slide = slides[i];
+    const title = slide.dataset.title || '';
+    if (!notesPanel.hidden) notesPanel.innerHTML = '<h4>' + pad(i + 1) + ' · ' + title + '</h4>' + notesHtml(slide);
+    if (presenter && !presenter.closed) {
+      const d = presenter.document;
+      const left = stepsOf(slide).filter((s) => !s.classList.contains('shown')).length;
+      d.getElementById('c').textContent = pad(i + 1) + ' / ' + pad(slides.length) + (left ? ' · ' + left + ' reveal(s) left' : '');
+      d.getElementById('t').textContent = title;
+      d.getElementById('n').innerHTML = notesHtml(slide);
+      d.getElementById('nx').textContent = slides[i + 1] ? 'Next: ' + (slides[i + 1].dataset.title || '') : 'Last slide';
+    }
+  }
+
+  function toggleNotes() {
+    notesPanel.hidden = !notesPanel.hidden;
+    renderNotes();
+  }
+
+  // Presenter window: open on a second screen, keep the deck on the projector.
+  function openPresenter() {
+    if (presenter && !presenter.closed) { presenter.focus(); return; }
+    presenter = window.open('', 'presenter', 'width=960,height=720');
+    if (!presenter) return;
+    presenter.document.write('<!doctype html><title>Presenter notes</title><style>' +
+      'body{margin:0;padding:36px 44px;background:#1b1a17;color:#f7f4ee;font:22px/1.55 -apple-system,system-ui,sans-serif}' +
+      '#c,#nx{font:15px/1 ui-monospace,Menlo,monospace;color:#e9a98c;letter-spacing:.08em}' +
+      'h1{font:400 40px/1.15 "Iowan Old Style",Georgia,serif;margin:14px 0 22px}' +
+      '#n p,#n li{margin:0 0 12px}#nx{margin-top:28px;color:#9a948a}code{font-family:ui-monospace,Menlo,monospace}' +
+      '</style><div id="c"></div><h1 id="t"></h1><div id="n"></div><div id="nx"></div>');
+    presenter.document.close();
+    presenter.document.addEventListener('keydown', onKey);
+    renderNotes();
+  }
+
+  function onKey(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t.closest && t.closest('input, textarea, select, [contenteditable]')) return;
+    const onButton = t.closest && t.closest('button, a');
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': next(); break;
+      case ' ': if (onButton) return; next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': prev(); break;
+      case 'Home': go(0); break;
+      case 'End': go(slides.length - 1); break;
+      case 'n': case 'N': toggleNotes(); break;
+      case 'p': case 'P': openPresenter(); break;
+      case 'f': case 'F':
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+        break;
+      default: return;
+    }
+    e.preventDefault();
+  }
+
+  // Generic tabs / before-after toggles: [data-tabs] > [data-tab="x"] + [data-panel="x"]
+  document.querySelectorAll('[data-tabs]').forEach((group) => {
+    const own = (el) => el.closest('[data-tabs]') === group;
+    const tabs = [...group.querySelectorAll('[data-tab]')].filter(own);
+    const panels = [...group.querySelectorAll('[data-panel]')].filter(own);
+    const select = (name) => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+      panels.forEach((p) => { p.hidden = p.dataset.panel !== name; });
+      group.dispatchEvent(new CustomEvent('tabs:change', { detail: name }));
+    };
+    tabs.forEach((t) => {
+      t.type = 'button';
+      t.setAttribute('role', 'tab');
+      t.addEventListener('click', () => select(t.dataset.tab));
+    });
+    const first = tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0];
+    if (first) select(first.dataset.tab);
+  });
+
+  addEventListener('resize', fit);
+  addEventListener('keydown', onKey);
+  addEventListener('hashchange', () => go(parseInt(location.hash.slice(1), 10) - 1 || 0, { fromHash: true }));
+  fit();
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1, { fromHash: true });
+})();
+</script>
+</body>
+</html>
