@@ -10,7 +10,7 @@ in a browser and present. You do not need PowerPoint or Keynote.
 
 Six helper agents write the slides at the same time. Click the picture for the full video.
 
-**See a demo deck:** [open it in your browser](https://host-html-user.com/p/f4d85q). This deck
+**See a demo deck:** [open it in your browser](https://taimoorkhan1122.github.io/present-now/demo/deck.html). This deck
 was made with this skill. Its source file is [`demo/deck.html`](demo/deck.html).
 
 ## For AI agents
@@ -18,7 +18,7 @@ was made with this skill. Its source file is [`demo/deck.html`](demo/deck.html).
 You can let your agent do the install. Paste this into Claude Code (or another agent):
 
 ```
-Install the present-now skill from https://github.com/<your-github-user>/present-now.
+Install the present-now skill from https://github.com/Taimoorkhan1122/present-now.
 Follow the "For AI agents" section of its README.md.
 ```
 
@@ -46,7 +46,7 @@ If you are an AI agent installing this skill, follow these steps in order.
 3. **Download the skill:**
 
    ```sh
-   git clone --depth 1 https://github.com/<your-github-user>/present-now <install-folder>
+   git clone --depth 1 https://github.com/Taimoorkhan1122/present-now <install-folder>
    chmod +x <install-folder>/scripts/*.sh <install-folder>/template/build.sh
    ```
 
@@ -132,20 +132,20 @@ Pick one way.
 **For all your projects** (most people want this):
 
 ```sh
-git clone https://github.com/<your-github-user>/present-now ~/.claude/skills/present-now
+git clone https://github.com/Taimoorkhan1122/present-now ~/.claude/skills/present-now
 ```
 
 **For one project only.** Run this inside the project folder:
 
 ```sh
-git clone https://github.com/<your-github-user>/present-now .claude/skills/present-now
+git clone https://github.com/Taimoorkhan1122/present-now .claude/skills/present-now
 ```
 
 **Keep it somewhere else, and link it.** Use this if you want to edit the skill in its own
 folder:
 
 ```sh
-git clone https://github.com/<your-github-user>/present-now ~/present-now
+git clone https://github.com/Taimoorkhan1122/present-now ~/present-now
 ln -s ~/present-now ~/.claude/skills/present-now
 ```
 
