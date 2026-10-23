@@ -93,6 +93,7 @@ __PLAN_ROWS__
 - The orchestrator builds and does all browser QA: leave `build.sh` and the browser alone.
 - Self-contained: inline SVG and system fonts only; no CDN, web fonts, or images by URL.
 - Styling lives in the slide-scoped `<style>` block, never in `style="…"` attributes.
+- Colors come from the `var(--…)` tokens in `src/head.html`, so the slide works in every theme.
 - Every `<button>` has `type="button"` and visible text or an `aria-label`. Everything clickable
   is a real `<button>`.
 - Keyboard shortcuts belong to the engine: never bind global keys or `preventDefault` arrows.

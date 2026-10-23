@@ -77,7 +77,8 @@ To make a deck after the install, read `<install-folder>/SKILL.md` and follow it
   separate presenter window.
 - **Progress bar** and slide counter.
 - **Clicker-safe.** A presentation clicker (arrow keys, Page Up, Page Down) works.
-- **Three looks.** Light (default), dark, or your brand color.
+- **Five themes.** Editorial (default), Terminal, Swiss, Midnight, and Sage, or your own brand
+  color.
 
 ## How it works
 
@@ -224,14 +225,21 @@ Screenshots go to `/tmp/present-now-qa/`. Do not use Chrome for anything else wh
 
 ## Change the look
 
-The default look is light, with a serif font and one orange accent color. In the interview,
-you can pick:
+In the interview, the agent asks you to pick a theme. It suggests the one that fits your
+audience best.
 
-- **Dark.** Dark background, light text.
-- **Brand.** Your own accent color. If your repo has design tokens, the agent can take the color
-  from there.
+| Theme | Look | Good for |
+|---|---|---|
+| **Editorial** (default) | Warm off-white, serif headings, orange accent | Most talks |
+| **Terminal** | Near-black, sans headings, orange accent | Developer talks, live coding, dark rooms |
+| **Swiss** | Pure white, bold sans headings, blue accent | Product and engineering reviews, bright rooms, weak projectors |
+| **Midnight** | Deep navy, serif headings, gold accent | Keynotes, conference stages, evening events |
+| **Sage** | Soft green-grey, serif headings, teal accent | Workshops, onboarding, non-technical audiences |
 
-The color settings are in `references/themes.md`.
+You can also give a **brand color** (for example `#0055ff`). The agent puts it on top of the
+closest theme. If your repo has design tokens, the agent can take the color from there.
+
+The theme files are in `themes/`. How the agent picks and asks is in `references/themes.md`.
 
 ## What is inside
 
@@ -241,8 +249,9 @@ present-now/
 ├── scripts/
 │   ├── new.sh            Makes a new deck folder from the template
 │   └── qa.sh             Checks every slide in Chrome
+├── themes/               Terminal, Swiss, Midnight, and Sage colors
 ├── references/
-│   └── themes.md         Dark and brand color settings
+│   └── themes.md         How the agent offers themes, and brand colors
 └── template/             Copied into every new deck
     ├── AUTHORING.md      Rules every slide writer follows
     ├── build.sh          Joins the slide files into deck.html

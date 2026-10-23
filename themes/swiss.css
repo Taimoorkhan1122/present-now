@@ -1,0 +1,11 @@
+/* theme: swiss */
+:root {
+  --paper: #ffffff; --paper-2: #f1f2f4; --card: #ffffff;
+  --ink: #111111; --ink-2: #33363b; --muted: #636873; --rule: #dcdfe4;
+  --accent: #1f4fd1; --accent-soft: #e3eafb;
+  --ok: #1d6b3a; --ok-soft: #e1f0e6; --bad: #b3261e; --bad-soft: #f9e1df;
+  --serif: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+h1, h2 { font-weight: 700; letter-spacing: -.035em; }
+h1 em, h2 em, .callout { font-style: normal; }
+.big-number { font-weight: 700; }

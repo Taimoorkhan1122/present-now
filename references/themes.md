@@ -1,28 +1,36 @@
 # Themes
 
-`template/src/head.html` ships the **light editorial** theme (warm off-white paper, serif
-headlines, one burnt-orange accent). Every color is a `:root` token, so a theme is an override
-block pasted just before `</style>` in the deck's `src/head.html`. Later rules win.
+Five themes. `editorial` is built into `template/src/head.html`. Each other theme is an override
+block in `<skill>/themes/<name>.css`; `scripts/new.sh` takes the theme name as its 4th argument
+and pastes that block just before `</style>` in the deck's `src/head.html`, so its rules win.
+Every color is a `:root` token, which is why slides use `var(--…)` colors only.
 
-## Dark, terminal-flavored
+## Picker
 
-```css
-/* theme: dark */
-:root {
-  --paper: #141413; --paper-2: #242320; --card: #1c1b19;
-  --ink: #f3efe7; --ink-2: #d9d3c8; --muted: #958e83; --rule: #34322e;
-  --accent: #ff8f5a; --accent-soft: #3d261b;
-  --ok: #8fd19b; --ok-soft: #1f3324; --bad: #ff8a7e; --bad-soft: #3d201d;
-}
-h1, h2 { font-family: var(--sans); font-weight: 600; letter-spacing: -.02em; }
-.tok-k { color: #d3a6ff; } .tok-s { color: #9fd8a6; } .tok-f { color: #8ab8ff; }
-.btn.is-active code, .btn[aria-pressed="true"] code, [aria-selected="true"] code { background: rgba(0,0,0,.14); }
-.notes-panel { background: #2a2926; color: var(--ink); }
-```
+| Theme | Description (copy into the question) | Fits |
+|---|---|---|
+| `editorial` | Warm off-white paper, serif headlines, burnt-orange accent. Calm and bookish. | most talks; the default |
+| `terminal` | Near-black, sans headlines, orange accent. Feels like a code editor. | developer audiences, live coding, dark rooms |
+| `swiss` | Pure white, bold sans headlines, cobalt-blue accent. Crisp and modern. | product and engineering reviews, bright rooms, weak projectors |
+| `midnight` | Deep navy, serif headlines, gold accent. Polished and quiet. | keynotes, conference stages, evening events |
+| `sage` | Soft green-grey paper, serif headlines, deep-teal accent. Gentle and warm. | workshops, onboarding, non-technical audiences |
+
+Ask with one `AskUserQuestion` question; it holds at most four options. Labels are the theme
+names capitalized. Put the theme whose **Fits** best matches the audience and room first, marked
+`(Recommended)` (Editorial when nothing fits better), then the next three best. Name the left-out
+theme and "a brand color (hex)" in the question text, so the user can type either under Other.
 
 ## Brand
 
-Keep the light (or dark) block and replace only `--accent` (the brand color) and `--accent-soft`
-(the same hue at ~15% strength over `--paper`). When the subject is a repo with design tokens
-(a Tailwind `@theme` block, CSS custom properties, a tokens file), lift its primary/brand color
-from there. Check the accent against `--paper` for ≥ 4.5:1 contrast on kicker-sized text.
+Pick the closest theme, then append this after it in the deck's `src/head.html` (still before
+`</style>`):
+
+```css
+/* brand */
+:root { --accent: #RRGGBB; --accent-soft: #RRGGBB; }
+```
+
+`--accent` is the brand color; `--accent-soft` is the same hue at about 15% strength over
+`--paper`. When the subject is a repo with design tokens (a Tailwind `@theme` block, CSS custom
+properties, a tokens file), lift its primary/brand color from there. Check `--accent` against
+`--paper` for at least 4.5:1 contrast: kickers are small accent-colored text.

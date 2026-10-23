@@ -1,0 +1,7 @@
+/* theme: sage */
+:root {
+  --paper: #f2f4ee; --paper-2: #e5e9df; --card: #fbfcf8;
+  --ink: #1c2620; --ink-2: #36443b; --muted: #58645c; --rule: #d3dacd;
+  --accent: #17656b; --accent-soft: #d9eae9;
+  --ok: #3a6b1f; --ok-soft: #e2ecd8; --bad: #a3261b; --bad-soft: #f6dedb;
+}

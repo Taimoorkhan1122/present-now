@@ -17,7 +17,8 @@ Skill files (paths relative to this skill's directory, written `<skill>/` below)
 - `scripts/new.sh`: scaffolds a deck from the template.
 - `scripts/qa.sh`: screenshots every slide, reports content-box overflow for every click state,
   and lists console errors.
-- `references/themes.md`: dark and brand variants.
+- `themes/`: override blocks for the non-default themes.
+- `references/themes.md`: the theme picker and brand colors.
 
 ## 1. Interview
 
@@ -37,7 +38,8 @@ Round two settles what round one left open, plus logistics:
 - **Timebox** in minutes, if not given yet.
 - **Location**: default `~/presentations/<slug>/`, outside any repo so the repo's checks never
   see it.
-- **Look**: light editorial (default), dark terminal, or brand colors (`references/themes.md`).
+- **Look**: one of five themes, or a brand color. Build the question from the picker in
+  `references/themes.md`.
 
 Notes (`N`), presenter window (`P`), and progress bar are built in.
 
@@ -76,10 +78,11 @@ total) and build on the user's OK; when they already said go, show it and contin
 ## 4. Scaffold
 
 ```sh
-<skill>/scripts/new.sh <out-dir> "<deck title>" "<footer text>"
+<skill>/scripts/new.sh <out-dir> "<deck title>" "<footer text>" <theme>
 ```
 
-Apply the chosen theme to `<out-dir>/src/head.html` when it is not the default. Fill every
+For a brand color, append its override to `<out-dir>/src/head.html` (`references/themes.md`,
+§ Brand). Fill every
 placeholder in `<out-dir>/AUTHORING.md`: event, minutes, slide count, audience, takeaway, sources,
 and one plan row per slide. Done when `rg '__[A-Z_]+__' <out-dir>` finds nothing.
 
